@@ -245,51 +245,34 @@ func (p *SQLDumpParser) convertSyntax(line string) string {
 		return ""
 	}
 
-	// Handle constraint statements
-	if strings.Contains(line, "ADD CONSTRAINT") {
-		return p.convertConstraint(line)
-	}
+	// Convert AUTO_INCREMENT to AUTOINCREMENT
+	line = strings.ReplaceAll(line, "AUTO_INCREMENT", "AUTOINCREMENT")
 
-	return line
-}
+	// Convert SERIAL to INTEGER AUTOINCREMENT
+	line = strings.ReplaceAll(line, "SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
 
-// convertConstraint converts PostgreSQL constraints to SQLite syntax
-func (p *SQLDumpParser) convertConstraint(line string) string {
-	// Extract constraint details
-	if strings.Contains(line, "PRIMARY KEY") {
-		matches := regexp.MustCompile(`ADD CONSTRAINT \w+ PRIMARY KEY \((.*?)\)`).FindStringSubmatch(line)
-		if len(matches) > 1 {
-			tableName := strings.Fields(line)[2] // Get table name from ALTER TABLE statement
-			return fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS pk_%s ON %s (%s);",
-				tableName, tableName, matches[1])
-		}
-	}
+	// Convert timestamp
+	line = strings.ReplaceAll(line, "timestamp without time zone", "DATETIME")
+	line = strings.ReplaceAll(line, "timestamp with time zone", "DATETIME")
 
-	if strings.Contains(line, "FOREIGN KEY") {
-		matches := regexp.MustCompile(`FOREIGN KEY \((.*?)\) REFERENCES (\w+)\((.*?)\)`).FindStringSubmatch(line)
-		if len(matches) > 3 {
-			tableName := strings.Fields(line)[2]
-			return fmt.Sprintf("CREATE INDEX IF NOT EXISTS fk_%s_%s ON %s (%s);",
-				tableName, matches[2], tableName, matches[1])
-		}
-	}
+	// Remove MySQL engine and charset
+	line = regexp.MustCompile(`\s*ENGINE=\w+`).ReplaceAllString(line, "")
+	line = regexp.MustCompile(`\s*DEFAULT CHARSET=\w+`).ReplaceAllString(line, "")
+	line = regexp.MustCompile(`\s*CHARACTER SET\s+\w+`).ReplaceAllString(line, "")
+	line = regexp.MustCompile(`\s*COLLATE\s+\w+`).ReplaceAllString(line, "")
 
-	if strings.Contains(line, "UNIQUE") {
-		matches := regexp.MustCompile(`ADD CONSTRAINT (\w+) UNIQUE \((.*?)\)`).FindStringSubmatch(line)
-		if len(matches) > 2 {
-			tableName := strings.Fields(line)[2]
-			return fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (%s);",
-				matches[1], tableName, matches[2])
-		}
-	}
+	// Clean up multiple spaces and semicolons
+	line = regexp.MustCompile(`\s+;`).ReplaceAllString(line, ";")
+	line = regexp.MustCompile(`\s+`).ReplaceAllString(line, " ")
 
-	return ""
+	return strings.TrimSpace(line)
 }
 
 // shouldSkipStatement checks if a statement should be skipped during import
 func shouldSkipStatement(stmt string) bool {
 	skipPatterns := []string{
 		`^SET `,
+		`^USE `,
 		`^ALTER DATABASE`,
 		`^CREATE DATABASE`,
 		`^CREATE SCHEMA`,
@@ -303,6 +286,12 @@ func shouldSkipStatement(stmt string) bool {
 		`SELECT pg_catalog`,
 		`ALTER TABLE.*OWNER TO`,
 		`ALTER TABLE.*ADD GENERATED`,
+		`BEGIN`,
+		`COMMIT`,
+		`ROLLBACK`,
+		`START TRANSACTION`,
+		`BEGIN TRANSACTION`,
+		`END TRANSACTION`,
 	}
 
 	for _, pattern := range skipPatterns {

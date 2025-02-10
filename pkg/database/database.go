@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
@@ -35,6 +36,29 @@ func Connect(config Config) (*sql.DB, error) {
 	if config.ConnectionURL != "" {
 		// If a connection URL is provided, use it directly
 		dsn = config.ConnectionURL
+
+		// For PostgreSQL, handle SSL mode
+		if config.Type == Postgres {
+			// Try to connect with the original connection string first
+			db, err := sql.Open(string(config.Type), dsn)
+			if err == nil {
+				err = db.Ping()
+				if err == nil {
+					return db, nil
+				}
+				db.Close()
+			}
+
+			// If the error is SSL-related, modify the connection string and retry
+			if err != nil && strings.Contains(err.Error(), "SSL") {
+				fmt.Println("Warning: SSL connection failed. Retrying with SSL disabled...")
+				if strings.Contains(dsn, "?") {
+					dsn += "&sslmode=disable"
+				} else {
+					dsn += "?sslmode=disable"
+				}
+			}
+		}
 	} else {
 		// Otherwise, build the connection string from individual fields
 		switch config.Type {
@@ -57,6 +81,7 @@ func Connect(config Config) (*sql.DB, error) {
 	}
 
 	if err = db.Ping(); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("error pinging database: %w", err)
 	}
 

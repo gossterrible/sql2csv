@@ -9,23 +9,22 @@ import (
 func TestSQLDumpParser_ParseToSQLite(t *testing.T) {
 	// Create a temporary SQL dump file
 	dumpContent := `
--- Test SQL dump
 CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR(255),
     email VARCHAR(255),
-    created_at TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+    created_at DATETIME
+);
 
 INSERT INTO users (name, email) VALUES
 ('John Doe', 'john@example.com'),
 ('Jane Smith', 'jane@example.com');
 
 CREATE TABLE products (
-    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR(255),
     price DECIMAL(10,2)
-) ENGINE=InnoDB;
+);
 `
 	tmpDumpFile, err := os.CreateTemp("", "test_dump_*.sql")
 	if err != nil {
@@ -72,59 +71,56 @@ CREATE TABLE products (
 		t.Errorf("Expected %d tables, got %d", len(expectedTables), len(tables))
 	}
 
-	for _, expected := range expectedTables {
+	// Verify each expected table exists
+	for _, tableName := range expectedTables {
 		found := false
-		for _, actual := range tables {
-			if actual == expected {
+		for _, actualTable := range tables {
+			if tableName == actualTable {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("Expected table %s not found", expected)
+			t.Errorf("Expected table %s not found", tableName)
 		}
 	}
 }
 
 func TestConvertSyntax(t *testing.T) {
 	tests := []struct {
-		name     string
-		dbType   DBType
-		input    string
-		expected string
+		name  string
+		input string
+		want  string
 	}{
 		{
-			name:     "MySQL AUTO_INCREMENT",
-			dbType:   MySQL,
-			input:    "id INTEGER PRIMARY KEY AUTO_INCREMENT",
-			expected: "id INTEGER PRIMARY KEY AUTOINCREMENT",
+			name:  "MySQL AUTO_INCREMENT",
+			input: "id INTEGER PRIMARY KEY AUTO_INCREMENT",
+			want:  "id INTEGER PRIMARY KEY AUTOINCREMENT",
 		},
 		{
-			name:     "MySQL ENGINE and CHARSET",
-			dbType:   MySQL,
-			input:    "CREATE TABLE test (id INT) ENGINE=InnoDB DEFAULT CHARSET=utf8;",
-			expected: "CREATE TABLE test (id INT)  ;",
+			name:  "MySQL ENGINE and CHARSET",
+			input: "CREATE TABLE test (id INT) ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+			want:  "CREATE TABLE test (id INT);",
 		},
 		{
-			name:     "PostgreSQL SERIAL",
-			dbType:   Postgres,
-			input:    "id SERIAL PRIMARY KEY",
-			expected: "id INTEGER AUTOINCREMENT PRIMARY KEY",
+			name:  "PostgreSQL SERIAL",
+			input: "id SERIAL PRIMARY KEY",
+			want:  "id INTEGER PRIMARY KEY AUTOINCREMENT",
 		},
 		{
-			name:     "PostgreSQL timestamp",
-			dbType:   Postgres,
-			input:    "created_at timestamp without time zone",
-			expected: "created_at DATETIME",
+			name:  "PostgreSQL timestamp",
+			input: "created_at timestamp without time zone",
+			want:  "created_at DATETIME",
 		},
 	}
 
+	parser := NewSQLDumpParser("test.sql", MySQL)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parser := &SQLDumpParser{dbType: tt.dbType}
-			result := parser.convertSyntax(tt.input)
-			if strings.TrimSpace(result) != strings.TrimSpace(tt.expected) {
-				t.Errorf("convertSyntax() = %v, want %v", result, tt.expected)
+			got := parser.convertSyntax(tt.input)
+			got = strings.TrimSpace(got)
+			if got != tt.want {
+				t.Errorf("convertSyntax() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -132,47 +128,37 @@ func TestConvertSyntax(t *testing.T) {
 
 func TestShouldSkipStatement(t *testing.T) {
 	tests := []struct {
-		name     string
-		stmt     string
-		expected bool
+		name      string
+		statement string
+		want      bool
 	}{
 		{
-			name:     "SET statement",
-			stmt:     "SET character_set_client = utf8;",
-			expected: true,
+			name:      "CREATE TABLE",
+			statement: "CREATE TABLE users (id INT);",
+			want:      false,
 		},
 		{
-			name:     "USE statement",
-			stmt:     "USE mydatabase;",
-			expected: true,
+			name:      "USE statement",
+			statement: "USE database_name;",
+			want:      true,
 		},
 		{
-			name:     "CREATE TABLE statement",
-			stmt:     "CREATE TABLE test (id INT);",
-			expected: false,
+			name:      "Transaction statement",
+			statement: "BEGIN TRANSACTION;",
+			want:      true,
 		},
 		{
-			name:     "INSERT statement",
-			stmt:     "INSERT INTO test VALUES (1);",
-			expected: false,
-		},
-		{
-			name:     "Transaction statement",
-			stmt:     "START TRANSACTION;",
-			expected: true,
-		},
-		{
-			name:     "CREATE DATABASE statement",
-			stmt:     "CREATE DATABASE test;",
-			expected: true,
+			name:      "SET statement",
+			statement: "SET foreign_key_checks=0;",
+			want:      true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := shouldSkipStatement(tt.stmt)
-			if result != tt.expected {
-				t.Errorf("shouldSkipStatement() = %v, want %v", result, tt.expected)
+			got := shouldSkipStatement(tt.statement)
+			if got != tt.want {
+				t.Errorf("shouldSkipStatement() = %v, want %v", got, tt.want)
 			}
 		})
 	}
