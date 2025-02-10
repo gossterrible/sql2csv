@@ -1,0 +1,93 @@
+# Binaries and build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.db
+*.test
+*.out
+sql2csv
+
+# Go specific
+*.o
+*.a
+_obj
+_test
+_testmain.go
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+
+# Dependency directories
+vendor/
+Godeps/
+.vendor-new/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+dist/
+bin/
+tmp/
+temp/
+*.csv
+*.log
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Debug files
+debug
+debug.test
+__debug_bin
+*.pprof
+*.prof
+
+# Build output directories
+build/
+release/
+output/
+
+# Test databases
+test_db/
+test.db
+test.sqlite
+test.sqlite3
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+*.swp 

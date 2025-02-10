@@ -1,0 +1,62 @@
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/sql2csv
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+
+brews:
+  - name: sql2csv
+    homepage: "https://github.com/gossterrible/sql2csv"
+    description: "A powerful command-line tool to export SQL database tables to CSV files"
+    license: "MIT"
+    tap:
+      owner: gossterrible
+      name: homebrew-tap
+    folder: Formula
+    install: |
+      bin.install "sql2csv"
+    test: |
+      system "#{bin}/sql2csv --version" 
