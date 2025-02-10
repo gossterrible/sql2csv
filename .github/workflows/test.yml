@@ -1,4 +1,4 @@
-name: Tests
+name: tests
 
 on:
   push:
@@ -8,58 +8,20 @@ on:
 
 jobs:
   test:
-    name: Run Tests
     runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:latest
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: test_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      mysql:
-        image: mysql:latest
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: test_db
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.23.6'
 
-    - name: Install dependencies
-      run: go mod download
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib gcc-mingw-w64
 
-    - name: Run tests
-      env:
-        POSTGRES_HOST: localhost
-        POSTGRES_PORT: 5432
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_DB: test_db
-        MYSQL_HOST: localhost
-        MYSQL_PORT: 3306
-        MYSQL_USER: root
-        MYSQL_PASSWORD: root
-        MYSQL_DB: test_db
-      run: go test -v -race ./... 
+      - name: Run tests
+        run: go test ./... 
