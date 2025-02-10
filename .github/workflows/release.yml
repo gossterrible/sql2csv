@@ -1,8 +1,9 @@
 name: goreleaser
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -39,4 +40,4 @@ jobs:
           version: '~> v2'
           args: release --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN || secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
